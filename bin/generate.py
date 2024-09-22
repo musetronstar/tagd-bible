@@ -83,7 +83,7 @@ def WEB_SRCs(*type_codes):
     if not CACHE_WEB_SRCs:
         CACHE_WEB_SRCs = []
         tagd_bible_dir = os.path.split(program_dir())[0]
-        srcs = tagd_bible_dir + '/docs/WEB_SRCs.txt'
+        srcs = tagd_bible_dir + '/docs/WEB_SRCs.tsv'
         srcs_dir = tagd_bible_dir + '/bibles/WEB'
         with open(srcs) as fi:
             for ln in fi:
