@@ -17,8 +17,12 @@ def die(*args, **kwargs):
     sys.exit(1)
 
 def program_name():
-    '''return program name of running program'''
+    '''return name of running program'''
     return os.path.basename(main.__file__)
+
+def program_dir():
+    '''return directory of running program'''
+    return os.path.split(main.__file__)[0]
 
 def file_string(fname):
     '''accepts a string filename and returns file contents as a string'''
