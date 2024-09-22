@@ -12,19 +12,49 @@ import os
 from bs4 import BeautifulSoup, Tag, NavigableString
 import urllib.parse
 
-def traverse_tag(tag, prefix=''):
-    '''recursively visit each tag child'''
+def print_tag_URN(tag, prefix):
+    '''print tag heirarchy + attributes as URN'''
+    print(prefix)
+
+def tag_URN(tag, prefix):
+    '''return tag heirarchy + attributes as URN'''
     prefix = f'{prefix}:{tag.name}' if prefix else tag.name
-    urn = f'{prefix}:{urllib.parse.urlencode(tag.attrs)}'
-    print(urn)
+    if tag.name in ('html', 'body'):
+        return prefix
+    # prepare attributes by joining lists as CSV
+    # generalize specific tags (e.g. verses) by removing ids, etc.
+    for k, v in tag.attrs.items():
+        if isinstance(v, list):
+            tag.attrs[k] = ','.join(v)
+        if k in ('id', 'href'):
+            tag.attrs[k] = ''
+
+    if len(tag.attrs):
+        qs = urllib.parse.urlencode(tag.attrs, safe='/,').replace(',+', ',')
+        prefix = f'{prefix}?{qs}'
+
+    # every body tag will have the prefix, so ignore it
+    #ignore = 'html:body:div?class=main'
+    #if prefix.startswith(ignore):
+    #    return prefix[len(ignore):]
+    #else:
+    #    return prefix
+
+    return prefix
+
+def traverse_tag(tag, tag_handler, string_handler, prefix=''):
+    '''
+    recursively visit each Tag child
+    call tag_handler(Tag, prefix) on each Tag
+    call string_handler(Tag, NavigableString, prefix) on each NavigableString
+    '''
+    prefix = tag_URN(tag, prefix)
+    tag_handler(tag, prefix)
     for c in tag.contents:
         if isinstance(c, Tag):
-            traverse_tag(c, prefix)
+            traverse_tag(c, tag_handler, string_handler, prefix)
         elif isinstance(c, NavigableString):
-            #s = c.string.strip()
-            #if len(s):
-            #    print(f'string({len(s)}):', s)
-            pass
+            string_handler(tag, c, prefix)
 
 def html_parser(html_doc):
     '''return parser for WEB Bible HTML'''
@@ -53,7 +83,7 @@ def WEB_SRCs(*type_codes):
     if not CACHE_WEB_SRCs:
         CACHE_WEB_SRCs = []
         tagd_bible_dir = os.path.split(program_dir())[0]
-        srcs = tagd_bible_dir + '/bibles/WEB_SRCs.txt'
+        srcs = tagd_bible_dir + '/docs/WEB_SRCs.txt'
         srcs_dir = tagd_bible_dir + '/bibles/WEB'
         with open(srcs) as fi:
             for ln in fi:
@@ -74,7 +104,7 @@ def WEB_URNs(args):
     '''print WEB HTML tag heirarchy+attributes as URNs'''
     for type_code, path, title in WEB_SRCs('oo','nn', 'aa'):
         parser = html_parser(file_string(path))
-        traverse_tag(parser.html)
+        traverse_tag(parser.html, print_tag_URN, lambda t, s, p: None)
 
 # command handlers
 CMDS = {
