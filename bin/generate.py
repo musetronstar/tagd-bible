@@ -12,11 +12,11 @@ import os
 from bs4 import BeautifulSoup, Tag, NavigableString
 import urllib.parse
 
-def print_tag_URN(tag, prefix):
+def print_tag_URN(tag, src, prefix):
     '''print tag heirarchy + attributes as URN'''
     print(prefix)
 
-def tag_URN(tag, prefix):
+def tag_URN(tag, src, prefix):
     '''return tag heirarchy + attributes as URN'''
     prefix = f'{prefix}:{tag.name}' if prefix else tag.name
     if tag.name in ('html', 'body'):
@@ -42,19 +42,21 @@ def tag_URN(tag, prefix):
 
     return prefix
 
-def traverse_tag(tag, tag_handler, string_handler, prefix=''):
+def traverse_tag(tag, tag_handler, string_handler, src, prefix=''):
     '''
     recursively visit each Tag child
-    call tag_handler(Tag, prefix) on each Tag
-    call string_handler(Tag, NavigableString, prefix) on each NavigableString
+    call tag_handler(Tag, src, prefix) on each Tag
+    call string_handler(Tag, NavigableString, src, prefix) on each NavigableString
+
+    Where src is a dictionary of WEB_SRC data
     '''
-    prefix = tag_URN(tag, prefix)
-    tag_handler(tag, prefix)
+    prefix = tag_URN(tag, src, prefix)
+    tag_handler(tag, src, prefix)
     for c in tag.contents:
         if isinstance(c, Tag):
-            traverse_tag(c, tag_handler, string_handler, prefix)
+            traverse_tag(c, tag_handler, string_handler, src, prefix)
         elif isinstance(c, NavigableString):
-            string_handler(tag, c, prefix)
+            string_handler(tag, c, src, prefix)
 
 def html_parser(html_doc):
     '''return parser for WEB Bible HTML'''
@@ -67,11 +69,16 @@ def WEB_SRCs(*type_codes):
     '''
     accept a variable length tuple of type codes
 
-    return list of tuples:
-        [(type-code, abs-path-to-html-file, title)...]
-
-    example tuple:
-        ('oo', '/path/to/tagd-bible/bibles/WEB/GEN01.html', 'Genesis')
+    return list of dictionaries (example):
+        [
+            {
+                'order': '01',
+                'type-code': 'oo',
+                'path', '/path/to/tagd-bible/bibles/WEB/GEN01.html',
+                'title': 'Genesis'
+            }
+            ...
+        ]
 
     where type codes are:
         xx  Auxillary/Supplimental Documents
@@ -80,6 +87,16 @@ def WEB_SRCs(*type_codes):
         nn  New Testament
     '''
     global CACHE_WEB_SRCs 
+
+    def WEB_SRC_dict(order, type_code, fname, title):
+        '''accept row from WEB_SRC, return dictionary'''
+        return {
+            'order': order,
+            'type-code': type_code,
+            'path': abs_path,
+            'title': title
+        }
+
     if not CACHE_WEB_SRCs:
         CACHE_WEB_SRCs = []
         tagd_bible_dir = os.path.split(program_dir())[0]
@@ -87,14 +104,14 @@ def WEB_SRCs(*type_codes):
         srcs_dir = tagd_bible_dir + '/bibles/WEB'
         with open(srcs) as fi:
             for ln in fi:
-                type_code, fname, title = ln.rstrip().split('\t')
+                order, type_code, fname, title = ln.rstrip().split('\t')
                 abs_path = f'{srcs_dir}/{fname}'
-                CACHE_WEB_SRCs.append( (type_code, abs_path, title) )
+                CACHE_WEB_SRCs.append(WEB_SRC_dict(order, type_code, abs_path, title))
 
     if len(type_codes):
         return [
-            (type_code, abs_path, title)
-            for type_code, abs_path, title in CACHE_WEB_SRCs
+            WEB_SRC_dict(order, type_code, abs_path, title)
+            for order, type_code, abs_path, title in CACHE_WEB_SRCs
             if type_code in type_codes
         ]
     else:
@@ -102,9 +119,10 @@ def WEB_SRCs(*type_codes):
 
 def WEB_URNs(args):
     '''print WEB HTML tag heirarchy+attributes as URNs'''
-    for type_code, path, title in WEB_SRCs('oo','nn', 'aa'):
-        parser = html_parser(file_string(path))
-        traverse_tag(parser.html, print_tag_URN, lambda t, s, p: None)
+    empty_string_handler = lambda t, s, d, p: None
+    for d in WEB_SRCs():
+        parser = html_parser(file_string(d['path']))
+        traverse_tag(parser.html, print_tag_URN, empty_string_handler, d)
 
 # command handlers
 CMDS = {
