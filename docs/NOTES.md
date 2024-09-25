@@ -3,19 +3,30 @@ Notes for work todo and done.
 
 ## Generate table of WEB HTML bible book sources (DONE)
 In the form:
-
-    order   type    file    title
-
-Command:
-```bash    
-sed -n "s|<li><a class='\(.*\)' href='\(.*\)'>\(.*\)</a></li>|\1\t\2\t\3|p" bibles/WEB/index.htm \
-    | grep -v 'xx' | awk '{ printf("%02d\t%s\n", NR, $0) }' | tee docs/WEB_SRCs.tsv
 ```
+    order    title    type    index    file01.htm [filenn.htm ...]
+```
+Where:
+```
+    order: '0' padded book order number from 01 to 81
+           Old Testament + Apocrypha + New Testament
+    title: Book Title 
+    type:  'oo' Old Testaments
+           'aa' Apocrypha
+           'nn' New Testament
+    index: HTML source containing chapter index
+    file:  HTML sources for each book chapter
+```
+Command:
+```bash 
+bin/WEB-src-index.pl | tee docs/WEB-src-indexes.tsv
+```
+
 ## Tokenize HTML tags & Frequency (DONE)
 * Generate tokens of HTML tags + attributes from WEB HTML bible book sources (Gen to Rev)
 * Make an ordered frequency table of tokens
 ```bash    
-bin/generate.py WEB-URNs | sort | uniq -c | sort -nr | tee docs/WEB_URNs.txt
+bin/generate.py WEB-URNs | sort | uniq -c | sort -nr | tee docs/WEB-URNs.txt
 ```
 
 ## Generate TAGL to express WEB Bible content

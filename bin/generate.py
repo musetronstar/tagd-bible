@@ -42,13 +42,22 @@ def tag_URN(tag, src, prefix):
 
     return prefix
 
+URN_data = {}
+def append_URN_strings(tag, string, src, prefix):
+    '''append NavigableString dictionary item having URN key'''
+    global URN_data
+    str_list = URN_data.get(prefix, [])
+    if string:
+        str_list.append(string)
+    URN_data[prefix] = str_list
+
 def traverse_tag(tag, tag_handler, string_handler, src, prefix=''):
     '''
     recursively visit each Tag child
     call tag_handler(Tag, src, prefix) on each Tag
     call string_handler(Tag, NavigableString, src, prefix) on each NavigableString
 
-    Where src is a dictionary of WEB_SRC data
+    Where src is a dictionary of WEB_src data
     '''
     prefix = tag_URN(tag, src, prefix)
     tag_handler(tag, src, prefix)
@@ -56,7 +65,7 @@ def traverse_tag(tag, tag_handler, string_handler, src, prefix=''):
         if isinstance(c, Tag):
             traverse_tag(c, tag_handler, string_handler, src, prefix)
         elif isinstance(c, NavigableString):
-            string_handler(tag, c, src, prefix)
+            string_handler(tag, c.strip(), src, prefix)
 
 def html_parser(html_doc):
     '''return parser for WEB Bible HTML'''
@@ -64,8 +73,8 @@ def html_parser(html_doc):
     return soup
 
 # memoize tuple list
-CACHE_WEB_SRCs = None
-def WEB_SRCs(*type_codes):
+CACHE_WEB_srcs = None
+def WEB_srcs(*type_codes):
     '''
     accept a variable length tuple of type codes
 
@@ -74,8 +83,9 @@ def WEB_SRCs(*type_codes):
             {
                 'order': '01',
                 'type-code': 'oo',
-                'path', '/path/to/tagd-bible/bibles/WEB/GEN01.html',
-                'title': 'Genesis'
+                'title': 'Genesis',
+                'index': '/path/to/tagd-bible/bibles/WEB/GEN.html',
+                'srcs': ['/path/to/tagd-bible/bibles/WEB/GEN01.html' ...],
             }
             ...
         ]
@@ -86,43 +96,50 @@ def WEB_SRCs(*type_codes):
         aa  Apocrypha
         nn  New Testament
     '''
-    global CACHE_WEB_SRCs 
+    global CACHE_WEB_srcs 
 
-    def WEB_SRC_dict(order, type_code, fname, title):
-        '''accept row from WEB_SRC, return dictionary'''
+    def WEB_src_dict(order, type_code, title, index, srcs):
+        '''accept row from WEB_src, return dictionary'''
         return {
             'order': order,
             'type-code': type_code,
-            'path': abs_path,
-            'title': title
+            'title': title,
+            'index': index,
+            'srcs': srcs.split(' ')
         }
 
-    if not CACHE_WEB_SRCs:
-        CACHE_WEB_SRCs = []
+    if not CACHE_WEB_srcs:
+        CACHE_WEB_srcs = []
         tagd_bible_dir = os.path.split(program_dir())[0]
-        srcs = tagd_bible_dir + '/docs/WEB_SRCs.tsv'
+        srcs = tagd_bible_dir + '/docs/WEB-src-indexes.tsv'
         srcs_dir = tagd_bible_dir + '/bibles/WEB'
         with open(srcs) as fi:
             for ln in fi:
-                order, type_code, fname, title = ln.rstrip().split('\t')
+                order, type_code, title, fname, srcs = ln.rstrip().split('\t')
                 abs_path = f'{srcs_dir}/{fname}'
-                CACHE_WEB_SRCs.append(WEB_SRC_dict(order, type_code, abs_path, title))
+                CACHE_WEB_srcs.append(WEB_src_dict(order, type_code, title, abs_path, srcs))
 
     if len(type_codes):
         return [
-            WEB_SRC_dict(order, type_code, abs_path, title)
-            for order, type_code, abs_path, title in CACHE_WEB_SRCs
+            WEB_src_dict(order, type_code, title, abs_path, srcs)
+            for order, type_code, title, abs_path, srcs in CACHE_WEB_srcs
             if type_code in type_codes
         ]
     else:
-        return CACHE_WEB_SRCs
+        return CACHE_WEB_srcs
 
 def WEB_URNs(args):
     '''print WEB HTML tag heirarchy+attributes as URNs'''
+    #empty_tag_handler = lambda t, d, p: None
     empty_string_handler = lambda t, s, d, p: None
-    for d in WEB_SRCs():
-        parser = html_parser(file_string(d['path']))
+    for d in WEB_srcs():
+        parser = html_parser(file_string(d['index']))
         traverse_tag(parser.html, print_tag_URN, empty_string_handler, d)
+        #traverse_tag(parser.html, empty_tag_handler, append_URN_strings, d)
+
+    #global URN_data
+    #from pprint import pprint
+    #pprint(URN_data, width=160 )
 
 # command handlers
 CMDS = {
