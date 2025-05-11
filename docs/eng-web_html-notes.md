@@ -32,6 +32,10 @@ followed by `[filenn.html ...]` which is each *chapter file* for that book.
     file:  HTML sources for each book chapter
 ```
 
+## USFX
+
+[USFX](https://ebible.org/Scriptures/eng-web_usfx.zip)
+
 ## TAGL Files
 
 Create `tagl/{01..n}-<WEB_book_title>`.tagl for each book.
